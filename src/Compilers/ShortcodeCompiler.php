@@ -2,90 +2,78 @@
 
 namespace Tec\Shortcode\Compilers;
 
+use Tec\Shortcode\View\View;
 use Illuminate\Support\Arr;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Str;
 
 class ShortcodeCompiler
 {
+    protected bool $enabled = false;
 
-    /**
-     * Enabled state
-     *
-     * @var boolean
-     */
-    protected $enabled = false;
+    protected bool $strip = false;
 
-    /**
-     * Enable strip state
-     *
-     * @var boolean
-     */
-    protected $strip = false;
+    protected array $matches = [];
 
-    /**
-     * @var mixed
-     */
-    protected $matches;
+    protected array $registered = [];
 
-    /**
-     * Registered shortcode
-     *
-     * @var array
-     */
-    protected $registered = [];
+    protected string $editLink;
 
-    /**
-     * Enable
-     *
-     * @return void
-     * @since 2.1
-     */
-    public function enable()
+    public function enable(): self
     {
         $this->enabled = true;
+
+        return $this;
     }
 
-    /**
-     * Disable
-     *
-     * @return void
-     * @since 2.1
-     */
-    public function disable()
+    public function disable(): self
     {
         $this->enabled = false;
+
+        return $this;
     }
 
-    /**
-     * Add a new shortcode
-     *
-     * @param string $key
-     * @param string $name
-     * @param null $description
-     * @param callable|string $callback
-     * @since 2.1
-     */
-    public function add($key, $name, $description = null, $callback = null)
+    public function setEditLink(string $editLink, string $permission): void
     {
-        $this->registered[$key] = compact('key', 'name', 'description', 'callback');
+        if ($permission && (! Auth::guard()->check() || ! Auth::guard()->user()->hasPermission($permission))) {
+            return;
+        }
+
+        $this->editLink = $editLink;
     }
 
-    /**
-     * Compile the contents
-     *
-     * @param string $value
-     * @return string
-     * @since 2.1
-     */
-    public function compile($value)
+    public function getEditLink(): string|null
+    {
+        if (! isset($this->editLink)) {
+            return null;
+        }
+
+        do_action('shortcode_set_edit_link', $this, $this->editLink);
+
+        return $this->editLink;
+    }
+
+    public function add(
+        string $key,
+        string|null $name,
+        string|null $description = null,
+        string|null|callable|array $callback = null,
+        string $previewImage = ''
+    ): void {
+        $this->registered[$key] = compact('key', 'name', 'description', 'callback', 'previewImage');
+    }
+
+    public function compile(string $value, bool $force = false): string
     {
         // Only continue is shortcode have been registered
-        if (!$this->enabled || !$this->hasShortcodes()) {
+        if ((! $this->enabled || ! $this->hasShortcodes()) && ! $force) {
             return $value;
         }
+
         // Set empty result
         $result = '';
-        // Here we will loop through all of the tokens returned by the Zend lexer and
+
+        // Here we will loop through all the tokens returned by the Zend lexer and
         // parse each one into the corresponding valid PHP. We will then have this
         // template as the correctly rendered PHP that can be rendered natively.
         foreach (token_get_all($value) as $token) {
@@ -95,33 +83,17 @@ class ShortcodeCompiler
         return $result;
     }
 
-    /**
-     * Check if shortcode have been registered
-     *
-     * @return boolean
-     * @since 2.1
-     */
-    public function hasShortcodes()
+    public function hasShortcodes(): bool
     {
-        return !empty($this->registered);
+        return ! empty($this->registered);
     }
 
-    /**
-     * @return boolean
-     */
-    public function hasShortcode(string $key)
+    public function hasShortcode(string $key): bool
     {
         return Arr::has($this->registered, $key);
     }
 
-    /**
-     * Parse the tokens from the template.
-     *
-     * @param array $token
-     * @return string
-     * @since 2.1
-     */
-    protected function parseToken($token)
+    protected function parseToken(array $token): string
     {
         [$id, $content] = $token;
         if ($id == T_INLINE_HTML) {
@@ -131,50 +103,37 @@ class ShortcodeCompiler
         return $content;
     }
 
-    /**
-     * Render shortcode
-     *
-     * @param string $value
-     * @return string
-     * @since 2.1
-     */
-    protected function renderShortcodes($value)
+    protected function renderShortcodes(string $value): string
     {
         $pattern = $this->getRegex();
 
         return preg_replace_callback('/' . $pattern . '/s', [$this, 'render'], $value);
     }
 
-    /**
-     * Render the current called shortcode.
-     *
-     * @param array $matches
-     * @return string
-     * @since 2.1
-     */
-    public function render($matches)
+    public function render(array $matches): string|null|View
     {
         // Compile the shortcode
         $compiled = $this->compileShortcode($matches);
         $name = $compiled->getName();
 
+        $callback = apply_filters('shortcode_get_callback', $this->getCallback($name), $name);
+
         // Render the shortcode through the callback
-        return call_user_func_array($this->getCallback($name), [
-            $compiled,
-            $compiled->getContent(),
-            $this,
+        return apply_filters(
+            'shortcode_content_compiled',
+            call_user_func_array($callback, [
+                $compiled,
+                $compiled->getContent(),
+                $this,
+                $name,
+            ]),
             $name,
-        ]);
+            $callback,
+            $this
+        );
     }
 
-    /**
-     * Get Compiled Attributes.
-     *
-     * @param $matches
-     * @return mixed
-     * @since 2.1
-     */
-    protected function compileShortcode($matches)
+    protected function compileShortcode($matches): Shortcode
     {
         // Set matches
         $this->setMatches($matches);
@@ -189,37 +148,19 @@ class ShortcodeCompiler
         );
     }
 
-    /**
-     * Set the matches
-     *
-     * @param array $matches
-     * @since 2.1
-     */
-    protected function setMatches($matches = [])
+    protected function setMatches(array $matches = []): void
     {
         $this->matches = $matches;
     }
 
-    /**
-     * Return the shortcode name
-     *
-     * @return string
-     * @since 2.1
-     */
-    public function getName()
+    public function getName(): string|null
     {
         return $this->matches[2];
     }
 
-    /**
-     * Return the shortcode content
-     *
-     * @return string
-     * @since 2.1
-     */
-    public function getContent()
+    public function getContent(): string|null
     {
-        if (!$this->matches) {
+        if (! $this->matches) {
             return null;
         }
 
@@ -227,14 +168,7 @@ class ShortcodeCompiler
         return $this->compile($this->matches[5]);
     }
 
-    /**
-     * Get the callback for the current shortcode (class or callback)
-     *
-     * @param string $key
-     * @return callable|array
-     * @since 2.1
-     */
-    public function getCallback($key)
+    public function getCallback(string $key): string|null|callable|array
     {
         // Get the callback from the shortcode array
         $callback = $this->registered[$key]['callback'];
@@ -255,13 +189,7 @@ class ShortcodeCompiler
         return $callback;
     }
 
-    /**
-     * Parse the shortcode attributes
-     * @param $text
-     * @return array
-     * @since 2.1
-     */
-    protected function parseAttributes($text)
+    protected function parseAttributes(string|null $text): array
     {
         // decode attribute values
         $text = htmlspecialchars_decode($text, ENT_QUOTES);
@@ -272,11 +200,11 @@ class ShortcodeCompiler
         // Match
         if (preg_match_all($pattern, preg_replace('/[\x{00a0}\x{200b}]+/u', ' ', $text), $match, PREG_SET_ORDER)) {
             foreach ($match as $item) {
-                if (!empty($item[1])) {
+                if (! empty($item[1])) {
                     $attributes[strtolower($item[1])] = stripcslashes($item[2]);
-                } elseif (!empty($item[3])) {
+                } elseif (! empty($item[3])) {
                     $attributes[strtolower($item[3])] = stripcslashes($item[4]);
-                } elseif (!empty($item[5])) {
+                } elseif (! empty($item[5])) {
                     $attributes[strtolower($item[5])] = stripcslashes($item[6]);
                 } elseif (isset($item[7]) && strlen($item[7])) {
                     $attributes[] = stripcslashes($item[7]);
@@ -288,78 +216,48 @@ class ShortcodeCompiler
             $attributes = ltrim($text);
         }
 
-        // return attributes
         return is_array($attributes) ? $attributes : [$attributes];
     }
 
-    /**
-     * Get shortcode names
-     *
-     * @return string
-     * @since 2.1
-     */
-    public function getShortcodeNames()
+    public function getShortcodeNames(array $except = []): string
     {
-        return join('|', array_map('preg_quote', array_keys($this->registered)));
+        $shortcodes = Arr::except($this->registered, $except);
+
+        return join('|', array_map('preg_quote', array_keys($shortcodes)));
     }
 
-    /**
-     * Get shortcode regex.
-     *
-     * @return string
-     * @since 2.1
-     */
-    protected function getRegex()
+    protected function getRegex(array $except = []): string
     {
-        $name = $this->getShortcodeNames();
+        $name = $this->getShortcodeNames($except);
 
         return '\\[(\\[?)(' . $name . ')(?![\\w-])([^\\]\\/]*(?:\\/(?!\\])[^\\]\\/]*)*?)(?:(\\/)\\]|\\](?:([^\\[]*+(?:\\[(?!\\/\\2\\])[^\\[]*+)*+)\\[\\/\\2\\])?)(\\]?)';
     }
 
     /**
      * Remove all shortcode tags from the given content.
-     *
-     * @param string $content Content to remove shortcode tags.
-     * @return string Content without shortcode tags.
-     * @since 2.1
      */
-    public function strip($content)
+    public function strip(string|null $content, array $except = []): string|null
     {
         if (empty($this->registered)) {
             return $content;
         }
 
-        $pattern = $this->getRegex();
+        $pattern = $this->getRegex($except);
 
         return preg_replace_callback('/' . $pattern . '/s', [$this, 'stripTag'], $content);
     }
 
-    /**
-     * @return mixed
-     * @since 2.1
-     */
-    public function getStrip()
+    public function getStrip(): bool
     {
         return $this->strip;
     }
 
-    /**
-     * @param boolean $strip
-     * @since 2.1
-     */
-    public function setStrip($strip)
+    public function setStrip(bool $strip): void
     {
         $this->strip = $strip;
     }
 
-    /**
-     * Remove shortcode tag
-     *
-     * @param string $match
-     * @return string Content without shortcode tag.
-     * @since 2.1
-     */
-    protected function stripTag($match)
+    protected function stripTag(array $match): string|null
     {
         if ($match[1] == '[' && $match[6] == ']') {
             return substr($match[0], 1, -1);
@@ -368,41 +266,33 @@ class ShortcodeCompiler
         return $match[1] . $match[6];
     }
 
-    /**
-     * @return array
-     */
-    public function getRegistered()
+    public function getRegistered(): array
     {
         return $this->registered;
     }
 
-    /**
-     * @param string $key
-     * @param string $html
-     */
-    public function setAdminConfig(string $key, $html)
+    public function setAdminConfig(string $key, string|null|callable|array $html): void
     {
         $this->registered[$key]['admin_config'] = $html;
     }
 
-    /**
-     * @param string $value
-     * @return array|array[]
-     */
-    public function getAttributes($value): array
+    public function getAttributes(string $value): array
     {
         $pattern = $this->getRegex();
 
         preg_match('/' . $pattern . '/s', $value, $matches);
 
-        if (!$matches) {
+        if (! $matches) {
             return [];
         }
 
-        // Set matches
         $this->setMatches($matches);
 
-        // pars the attributes
         return $this->parseAttributes($this->matches[3]);
+    }
+
+    public function whitelistShortcodes(): array
+    {
+        return apply_filters('core_whitelist_shortcodes', ['media', 'youtube-video']);
     }
 }

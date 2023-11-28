@@ -10,27 +10,10 @@ use Illuminate\View\ViewFinderInterface;
 
 class Factory extends IlluminateViewFactory
 {
+    public ShortcodeCompiler $shortcode;
 
-    /**
-     * Short code engine resolver
-     *
-     * @var ShortcodeCompiler
-     */
-    public $shortcode;
+    protected array $aliases = [];
 
-    /**
-     * @var array
-     */
-    protected $aliases = [];
-
-    /**
-     * Factory constructor.
-     * @param EngineResolver $engines
-     * @param ViewFinderInterface $finder
-     * @param Dispatcher $events
-     * @param ShortcodeCompiler $shortcode
-     * @since 2.1
-     */
     public function __construct(
         EngineResolver $engines,
         ViewFinderInterface $finder,
@@ -41,16 +24,7 @@ class Factory extends IlluminateViewFactory
         $this->shortcode = $shortcode;
     }
 
-    /**
-     * Get the evaluated view contents for the given view.
-     *
-     * @param string $view
-     * @param array $data
-     * @param array $mergeData
-     * @return \Illuminate\Contracts\View\View|string|View
-     * @since 2.1
-     */
-    public function make($view, $data = [], $mergeData = [])
+    public function make($view, $data = [], $mergeData = []): View
     {
         if (isset($this->aliases[$view])) {
             $view = $this->aliases[$view];
@@ -59,8 +33,14 @@ class Factory extends IlluminateViewFactory
         $path = $this->finder->find($view);
         $data = array_merge($mergeData, $this->parseData($data));
 
-        $this->callCreator($view = new View($this, $this->getEngineFromPath($path), $view, $path, $data,
-            $this->shortcode));
+        $this->callCreator($view = new View(
+            $this,
+            $this->getEngineFromPath($path),
+            $view,
+            $path,
+            $data,
+            $this->shortcode
+        ));
 
         return $view;
     }
