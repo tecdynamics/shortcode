@@ -1,47 +1,36 @@
 <?php
 
-if (!function_exists('shortcode')) {
-    /**
-     * @return \Tec\Shortcode\Shortcode
-     */
-    function shortcode()
+use Tec\Shortcode\Shortcode;
+use Illuminate\Support\HtmlString;
+
+if (! function_exists('shortcode')) {
+    function shortcode(): Shortcode
     {
         return app('shortcode');
     }
 }
 
-if (!function_exists('add_shortcode')) {
-    /**
-     * @param string $key
-     * @param string $name
-     * @param null|string $description
-     * @param Callable|string $callback
-     * @return \Tec\Shortcode\Shortcode
-     */
-    function add_shortcode($key, $name, $description = null, $callback = null)
-    {
-        return shortcode()->register($key, $name, $description, $callback);
+if (! function_exists('add_shortcode')) {
+    function add_shortcode(
+        string $key,
+        string|null $name,
+        string|null $description = null,
+        string|null|callable|array $callback = null,
+        string|null $previewImage = ''
+    ): Shortcode {
+        return shortcode()->register($key, $name, $description, $callback, $previewImage);
     }
 }
 
-if (!function_exists('do_shortcode')) {
-    /**
-     * @param string $content
-     * @return string
-     */
-    function do_shortcode($content)
+if (! function_exists('do_shortcode')) {
+    function do_shortcode(string $content): HtmlString
     {
-        return shortcode()->compile($content);
+        return shortcode()->compile($content, true);
     }
 }
 
-if (!function_exists('generate_shortcode')) {
-    /**
-     * @param string $name
-     * @param array $attributes
-     * @return string
-     */
-    function generate_shortcode($name, array $attributes = [])
+if (! function_exists('generate_shortcode')) {
+    function generate_shortcode(string $name, array $attributes = []): string
     {
         return shortcode()->generateShortcode($name, $attributes);
     }

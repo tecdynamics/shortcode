@@ -7,14 +7,17 @@
             "Tec\\Shortcode\\": "src"
         }
     },
- "require": {
+    "require": {
         "tecdynamics/platform": "*@dev"
     },
     "extra": {
         "laravel": {
             "providers": [
                 "Tec\\Shortcode\\Providers\\ShortcodeServiceProvider"
-            ]
+            ],
+            "aliases": {
+                "Shortcode": "Tec\\Shortcode\\Facades\\Shortcode"
+            }
         }
     }
 }

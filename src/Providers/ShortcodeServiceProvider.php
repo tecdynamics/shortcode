@@ -2,23 +2,17 @@
 
 namespace Tec\Shortcode\Providers;
 
+use Tec\Base\Supports\ServiceProvider;
 use Tec\Base\Traits\LoadAndPublishDataTrait;
 use Tec\Shortcode\Compilers\ShortcodeCompiler;
 use Tec\Shortcode\Shortcode;
 use Tec\Shortcode\View\Factory;
-use Illuminate\Support\ServiceProvider;
 
 class ShortcodeServiceProvider extends ServiceProvider
 {
     use LoadAndPublishDataTrait;
 
-    /**
-     * Register the service provider.
-     *
-     * @return void
-     * @since 2.1
-     */
-    public function register()
+    public function register(): void
     {
         $this->app->singleton('shortcode.compiler', ShortcodeCompiler::class);
 
@@ -38,11 +32,18 @@ class ShortcodeServiceProvider extends ServiceProvider
             // for great testable, flexible composers for the application developer.
             $env->setContainer($app);
             $env->share('app', $app);
+
             return $env;
+        });
+
+        $this->app['blade.compiler']->directive('shortcode', function ($expression) {
+            return do_shortcode($expression);
         });
 
         $this->setNamespace('packages/shortcode')
             ->loadRoutes()
-            ->loadHelpers();
+            ->loadHelpers()
+            ->loadAndPublishViews()
+            ->publishAssets();
     }
 }

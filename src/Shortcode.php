@@ -3,123 +3,59 @@
 namespace Tec\Shortcode;
 
 use Tec\Shortcode\Compilers\ShortcodeCompiler;
+use Illuminate\Support\Arr;
+use Illuminate\Support\HtmlString;
 
 class Shortcode
 {
-    /**
-     * Shortcode compiler
-     *
-     * @var ShortcodeCompiler
-     */
-    protected $compiler;
-
-    /**
-     * Constructor
-     *
-     * @param ShortcodeCompiler $compiler
-     * @since 2.1
-     */
-    public function __construct(ShortcodeCompiler $compiler)
+    public function __construct(protected ShortcodeCompiler $compiler)
     {
-        $this->compiler = $compiler;
     }
 
-    /**
-     * Register a new shortcode
-     *
-     * @param string $key
-     * @param string $name
-     * @param null $description
-     * @param callable|string $callback
-     * @return Shortcode
-     * @since 2.1
-     */
-    public function register($key, $name, $description = null, $callback = null)
+    public function register(string $key, string|null $name, string|null $description = null, $callback = null, string $previewImage = ''): Shortcode
     {
-        $this->compiler->add($key, $name, $description, $callback);
+        $this->compiler->add($key, $name, $description, $callback, $previewImage);
 
         return $this;
     }
 
-    /**
-     * Enable the shortcode
-     *
-     * @return Shortcode
-     * @since 2.1
-     */
-    public function enable()
+    public function enable(): Shortcode
     {
         $this->compiler->enable();
 
         return $this;
     }
 
-    /**
-     * Disable the shortcode
-     *
-     * @return Shortcode
-     * @since 2.1
-     */
-    public function disable()
+    public function disable(): Shortcode
     {
         $this->compiler->disable();
 
         return $this;
     }
 
-    /**
-     * Compile the given string
-     *
-     * @param string $value
-     * @return string
-     * @since 2.1
-     */
-    public function compile($value)
+    public function compile(string $value, bool $force = false): HtmlString
     {
-        // Always enable when we call the compile method directly
-        $this->enable();
+        $html = $this->compiler->compile($value, $force);
 
-        // return compiled contents
-        $html = $this->compiler->compile($value);
-
-        $this->disable();
-
-        return $html;
+        return new HtmlString($html);
     }
 
-    /**
-     * @param string $value
-     * @return string
-     * @since 2.1
-     */
-    public function strip($value)
+    public function strip(string|null $value): string|null
     {
         return $this->compiler->strip($value);
     }
 
-    /**
-     * @return array
-     */
-    public function getAll()
+    public function getAll(): array
     {
-        return $this->compiler->getRegistered();
+        return Arr::sort($this->compiler->getRegistered());
     }
 
-    /**
-     * @param string $key
-     * @param string|callable $html
-     */
-    public function setAdminConfig(string $key, $html)
+    public function setAdminConfig(string $key, string|null|callable|array $html): void
     {
         $this->compiler->setAdminConfig($key, $html);
     }
 
-    /**
-     * @param string $name
-     * @param array $attributes
-     * @return string
-     */
-    public function generateShortcode($name, array $attributes = [])
+    public function generateShortcode(string $name, array $attributes = []): string
     {
         $parsedAttributes = '';
         foreach ($attributes as $key => $attribute) {
@@ -129,11 +65,13 @@ class Shortcode
         return '[' . $name . $parsedAttributes . '][/' . $name . ']';
     }
 
-    /**
-     * @return ShortcodeCompiler
-     */
-    public function getCompiler()
+    public function getCompiler(): ShortcodeCompiler
     {
         return $this->compiler;
+    }
+
+    public function fields(): ShortcodeField
+    {
+        return new ShortcodeField();
     }
 }
