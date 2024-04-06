@@ -1,5 +1,5 @@
 {
-    "name": "Tec/shortcode",
+    "name": "tecdynamics/platform",
     "description": "Shortcode package",
     "type": "package",
     "autoload": {
