@@ -60,7 +60,27 @@ class ShortcodeCompiler
         string|null|callable|array $callback = null,
         string $previewImage = ''
     ): void {
-        $this->registered[$key] = compact('key', 'name', 'description', 'callback', 'previewImage');
+        $shortcode = compact('key', 'name', 'description', 'callback', 'previewImage');
+
+        $this->registered[$key] = isset($this->registered[$key])
+            ? [...$this->registered[$key], ...$shortcode]
+            : $shortcode;
+    }
+
+    public function setPreviewImage(string $key, string $previewImage): void
+    {
+        if (! $this->hasShortcode($key)) {
+            return;
+        }
+
+        $this->registered[$key]['previewImage'] = $previewImage;
+    }
+
+    public function remove(string $key): void
+    {
+        if ($this->hasShortcode($key)) {
+            unset($this->registered[$key]);
+        }
     }
 
     public function compile(string $value, bool $force = false): string
@@ -238,7 +258,7 @@ class ShortcodeCompiler
      */
     public function strip(string|null $content, array $except = []): string|null
     {
-        if (empty($this->registered)) {
+        if (empty($this->registered) || ! $content) {
             return $content;
         }
 
@@ -274,6 +294,11 @@ class ShortcodeCompiler
     public function setAdminConfig(string $key, string|null|callable|array $html): void
     {
         $this->registered[$key]['admin_config'] = $html;
+    }
+
+    public function modifyAdminConfig(string $key, callable $callback): void
+    {
+        $this->registered[$key]['admin_config_modifier'] = $callback;
     }
 
     public function getAttributes(string $value): array

@@ -1,5 +1,5 @@
 {
-    "name": "tecdynamics/shortcode",
+    "name": "Tec/shortcode",
     "description": "Shortcode package",
     "type": "package",
     "autoload": {
@@ -8,7 +8,7 @@
         }
     },
     "require": {
-        "tecdynamics/platform": "*"
+        "Tec/platform": "*@dev"
     },
     "extra": {
         "laravel": {

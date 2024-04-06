@@ -19,6 +19,18 @@ class Shortcode
         return $this;
     }
 
+    public function remove(string $key): void
+    {
+        $this->compiler->remove($key);
+    }
+
+    public function setPreviewImage(string $key, string $previewImage): Shortcode
+    {
+        $this->compiler->setPreviewImage($key, $previewImage);
+
+        return $this;
+    }
+
     public function enable(): Shortcode
     {
         $this->compiler->enable();
@@ -53,6 +65,11 @@ class Shortcode
     public function setAdminConfig(string $key, string|null|callable|array $html): void
     {
         $this->compiler->setAdminConfig($key, $html);
+    }
+
+    public function modifyAdminConfig(string $key, callable $callback): void
+    {
+        $this->compiler->modifyAdminConfig($key, $callback);
     }
 
     public function generateShortcode(string $name, array $attributes = []): string
