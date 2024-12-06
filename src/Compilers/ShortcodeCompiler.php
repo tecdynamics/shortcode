@@ -3,6 +3,7 @@
 namespace Tec\Shortcode\Compilers;
 
 use Tec\Shortcode\View\View;
+use Tec\Theme\Facades\Theme;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Str;
@@ -42,7 +43,7 @@ class ShortcodeCompiler
         $this->editLink = $editLink;
     }
 
-    public function getEditLink(): string|null
+    public function getEditLink(): ?string
     {
         if (! isset($this->editLink)) {
             return null;
@@ -55,8 +56,8 @@ class ShortcodeCompiler
 
     public function add(
         string $key,
-        string|null $name,
-        string|null $description = null,
+        ?string $name,
+        ?string $description = null,
         string|null|callable|array $callback = null,
         string $previewImage = ''
     ): void {
@@ -136,6 +137,23 @@ class ShortcodeCompiler
         $compiled = $this->compileShortcode($matches);
         $name = $compiled->getName();
 
+        if ($compiled->enable_lazy_loading === 'yes' && ! request()->ajax()) {
+            add_filter(THEME_FRONT_FOOTER, function (?string $html) {
+                return $html . view('packages/shortcode::partials.lazy-loading-script')->render();
+            }, 120);
+
+            $placeholderView = Theme::getThemeNamespace('partials.lazy-loading-placeholder');
+
+            if (! view()->exists($placeholderView)) {
+                $placeholderView = 'packages/shortcode::partials.lazy-loading-placeholder';
+            }
+
+            return view($placeholderView, [
+                'name' => $name,
+                'attributes' => Arr::except($compiled->toArray(), 'enable_lazy_loading'),
+            ]);
+        }
+
         $callback = apply_filters('shortcode_get_callback', $this->getCallback($name), $name);
 
         // Render the shortcode through the callback
@@ -173,12 +191,12 @@ class ShortcodeCompiler
         $this->matches = $matches;
     }
 
-    public function getName(): string|null
+    public function getName(): ?string
     {
         return $this->matches[2];
     }
 
-    public function getContent(): string|null
+    public function getContent(): ?string
     {
         if (! $this->matches) {
             return null;
@@ -209,7 +227,7 @@ class ShortcodeCompiler
         return $callback;
     }
 
-    protected function parseAttributes(string|null $text): array
+    protected function parseAttributes(?string $text): array
     {
         // decode attribute values
         $text = htmlspecialchars_decode($text, ENT_QUOTES);
@@ -256,7 +274,7 @@ class ShortcodeCompiler
     /**
      * Remove all shortcode tags from the given content.
      */
-    public function strip(string|null $content, array $except = []): string|null
+    public function strip(?string $content, array $except = []): ?string
     {
         if (empty($this->registered) || ! $content) {
             return $content;
@@ -277,7 +295,7 @@ class ShortcodeCompiler
         $this->strip = $strip;
     }
 
-    protected function stripTag(array $match): string|null
+    protected function stripTag(array $match): ?string
     {
         if ($match[1] == '[' && $match[6] == ']') {
             return substr($match[0], 1, -1);

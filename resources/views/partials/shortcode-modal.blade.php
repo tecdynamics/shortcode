@@ -1,4 +1,3 @@
-@php use Tec\Shortcode\Facades\Shortcode; @endphp
 @php
     $shortcodes = Shortcode::getAll()
 @endphp

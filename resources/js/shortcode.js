@@ -144,6 +144,7 @@ $(() => {
 
                 Tec.initResources()
                 Tec.initMediaIntegrate()
+                Tec.initFieldCollapse()
 
                 document.dispatchEvent(new CustomEvent('core-shortcode-config-loaded'))
             })

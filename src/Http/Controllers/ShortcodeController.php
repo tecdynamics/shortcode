@@ -8,12 +8,13 @@ use Tec\Base\Http\Controllers\BaseController;
 use Tec\Shortcode\Events\ShortcodeAdminConfigRendering;
 use Tec\Shortcode\Facades\Shortcode;
 use Tec\Shortcode\Http\Requests\GetShortcodeDataRequest;
+use Tec\Shortcode\Http\Requests\RenderBlockUiRequest;
 use Closure;
 use Illuminate\Support\Arr;
 
 class ShortcodeController extends BaseController
 {
-    public function ajaxGetAdminConfig(string|null $key, GetShortcodeDataRequest $request)
+    public function ajaxGetAdminConfig(?string $key, GetShortcodeDataRequest $request)
     {
         ShortcodeAdminConfigRendering::dispatch();
 
@@ -51,5 +52,24 @@ class ShortcodeController extends BaseController
         return $this
             ->httpResponse()
             ->setData($data);
+    }
+
+    public function ajaxRenderUiBlock(RenderBlockUiRequest $request)
+    {
+        $name = $request->input('name');
+
+        if (! in_array($name, array_keys(Shortcode::getAll()))) {
+            return $this
+                ->httpResponse()
+                ->setData(null);
+        }
+
+        $code = Shortcode::generateShortcode($name, $request->input('attributes', []));
+
+        $content = Shortcode::compile($code, true)->toHtml();
+
+        return $this
+            ->httpResponse()
+            ->setData($content);
     }
 }

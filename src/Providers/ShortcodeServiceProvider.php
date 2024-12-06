@@ -23,9 +23,15 @@ class ShortcodeServiceProvider extends ServiceProvider
         });
 
         $this->app->singleton('view', function ($app) {
+            // Next we need to grab the engine resolver instance that will be used by the
+            // environment. The resolver will be used by an environment to get each of
+            // the various engine implementations such as plain PHP or Blade engine.
             $resolver = $app['view.engine.resolver'];
             $finder = $app['view.finder'];
             $env = new Factory($resolver, $finder, $app['events'], $app['shortcode.compiler']);
+            // We will also set the container instance on this view environment since the
+            // view composers may be classes registered in the container, which allows
+            // for great testable, flexible composers for the application developer.
             $env->setContainer($app);
             $env->share('app', $app);
 
@@ -50,8 +56,7 @@ class ShortcodeServiceProvider extends ServiceProvider
             ->publishAssets();
 
         $this->app->booted(function () {
-
-            add_filter(BASE_FILTER_FORM_EDITOR_BUTTONS, function (string|null $buttons, array $attributes, string $id) {
+            add_filter(BASE_FILTER_FORM_EDITOR_BUTTONS, function (?string $buttons, array $attributes, string $id) {
                 if (! $this->hasWithShortcode($attributes)) {
                     return $buttons;
                 }
@@ -63,7 +68,7 @@ class ShortcodeServiceProvider extends ServiceProvider
                 return $buttons;
             }, 120, 3);
 
-            add_filter(BASE_FILTER_FORM_EDITOR_BUTTONS_HEADER, function (string|null $header, array $attributes) {
+            add_filter(BASE_FILTER_FORM_EDITOR_BUTTONS_HEADER, function (?string $header, array $attributes) {
                 if (! $this->hasWithShortcode($attributes)) {
                     return $header;
                 }
@@ -73,8 +78,7 @@ class ShortcodeServiceProvider extends ServiceProvider
                 return $header;
             }, 120, 2);
 
-            add_filter(BASE_FILTER_FORM_EDITOR_BUTTONS_FOOTER, function (string|null $footer, array $attributes) {
-
+            add_filter(BASE_FILTER_FORM_EDITOR_BUTTONS_FOOTER, function (?string $footer, array $attributes) {
                 if (! $this->hasWithShortcode($attributes)) {
                     return $footer;
                 }
